@@ -10,8 +10,6 @@ import seaborn as sns
 # Set the title of the app
 st.title("Wine Quality Prediction App")
 
-# Load trained model and scaler
-# Correct paths (modify as needed)
 model_path = 'models/best_wine_quality_model.joblib'
 scaler_path = 'models/scaler.joblib'
 
