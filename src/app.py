@@ -11,8 +11,9 @@ import seaborn as sns
 st.title("Wine Quality Prediction App")
 
 # Load trained model and scaler
-model_path = './models/best_wine_quality_model.joblib'  # Update this path if needed
-scaler_path = './models/scaler.joblib'  # Update this path if needed
+# Correct paths (modify as needed)
+model_path = 'models/best_wine_quality_model.joblib'
+scaler_path = 'models/scaler.joblib'
 
 # Check if model and scaler files exist
 if not os.path.exists(model_path):
@@ -32,8 +33,7 @@ except Exception as e:
     st.error(f"Error loading model or scaler: {e}")
     st.stop()
 
-# Load dataset (used for model evaluation)
-data_path = 'D:/My/Wine/data/winequality.csv'  # Update this path if needed
+data_path = 'data/winequality.csv'
 if not os.path.exists(data_path):
     st.error(f"Dataset file not found at: {data_path}. Please ensure the file exists.")
     st.stop()
