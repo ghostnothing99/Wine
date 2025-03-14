@@ -10,134 +10,120 @@ import seaborn as sns
 # Set the title of the app
 st.title("🍷 Wine Quality Prediction App")
 
-# Debugging: Print current working directory and file paths
+# Debugging information
 st.write("### Debugging Information")
 st.write(f"Current working directory: `{os.getcwd()}`")
 st.write(f"Files in directory: `{os.listdir()}`")
 
-# Define paths (update these if needed)
+# Define paths
 model_path = 'best_wine_quality_model.joblib'
 scaler_path = 'scaler.joblib'
 data_path = 'winequality.csv'
 
-# Check if files exist (with absolute paths)
+# File checks
 st.write("#### File Path Checks")
-st.write(f"Looking for model at: `{os.path.abspath(model_path)}`")
-st.write(f"Looking for scaler at: `{os.path.abspath(scaler_path)}`")
-st.write(f"Looking for dataset at: `{os.path.abspath(data_path)}`")
+st.write(f"Model path: `{os.path.abspath(model_path)}`")
+st.write(f"Scaler path: `{os.path.abspath(scaler_path)}`")
+st.write(f"Data path: `{os.path.abspath(data_path)}`")
 
-if not os.path.exists(model_path):
-    st.error(f"❌ Model file not found at: `{os.path.abspath(model_path)}`. Please ensure the file exists.")
+# Check for required files
+if not all([os.path.exists(model_path), os.path.exists(scaler_path), os.path.exists(data_path)]):
+    st.error("❌ Missing required files. Please check:")
+    st.error(f"- Model: {'Found' if os.path.exists(model_path) else 'Missing'}")
+    st.error(f"- Scaler: {'Found' if os.path.exists(scaler_path) else 'Missing'}")
+    st.error(f"- Data: {'Found' if os.path.exists(data_path) else 'Missing'}")
     st.stop()
 
-if not os.path.exists(scaler_path):
-    st.error(f"❌ Scaler file not found at: `{os.path.abspath(scaler_path)}`. Please ensure the file exists.")
-    st.stop()
-
-# Load the model and scaler
+# Load model and scaler
 try:
     model = joblib.load(model_path)
     scaler = joblib.load(scaler_path)
     st.success("✅ Model and scaler loaded successfully!")
 except Exception as e:
-    st.error(f"❌ Error loading model or scaler: {e}")
+    st.error(f"❌ Error loading model/scaler: {str(e)}")
     st.stop()
 
 # Load dataset
 try:
     df = pd.read_csv(data_path)
-    st.write(f"✅ Dataset `{data_path}` loaded successfully!")
+    st.write(f"✅ Dataset loaded successfully (shape: {df.shape})")
 except Exception as e:
-    st.error(f"❌ Error loading dataset: {e}")
+    st.error(f"❌ Error loading dataset: {str(e)}")
     st.stop()
 
-# Feature alignment check
-if hasattr(scaler, 'feature_names_in_'):
-    required_features = list(scaler.feature_names_in_)
-    missing_features = [feat for feat in required_features if feat not in df.columns]
-    if missing_features:
-        st.error(f"❌ Missing features in dataset: {missing_features}")
-        st.stop()
-    X = df[required_features].copy()
-else:
-    X = df.drop('quality', axis=1)
+# Feature alignment
+try:
+    if hasattr(scaler, 'feature_names_in_'):
+        required_features = list(scaler.feature_names_in_)
+        X = df[required_features].copy()
+    else:
+        X = df.drop('quality', axis=1)
+        
+    y = df['quality'] - df['quality'].min()
+except Exception as e:
+    st.error(f"❌ Feature processing error: {str(e)}")
+    st.stop()
 
-y = df['quality']
-y = y - y.min()  # Normalize labels to start from 0
+# Model processing
+try:
+    X_scaled = scaler.transform(X)
+    y_pred = model.predict(X_scaled)
+except Exception as e:
+    st.error(f"❌ Prediction error: {str(e)}")
+    st.stop()
 
-# Transform features
-X_scaled = scaler.transform(X)
-y_pred = model.predict(X_scaled)
-
-# Sidebar for user input
-st.sidebar.header("⚙️ User Input Features")
+# Sidebar inputs
+st.sidebar.header("⚙️ Input Features")
 input_features = {}
 for feature in scaler.feature_names_in_:
     input_features[feature] = st.sidebar.number_input(
         feature, 
         value=0.0,
-        help=f"Enter value for {feature}"
+        min_value=0.0,
+        format="%.2f"
     )
 
 # Prediction
-input_df = pd.DataFrame([input_features])
-input_scaled = scaler.transform(input_df)
-prediction = model.predict(input_scaled)[0] + df['quality'].min()
+try:
+    input_df = pd.DataFrame([input_features])
+    input_scaled = scaler.transform(input_df)
+    prediction = model.predict(input_scaled)[0] + df['quality'].min()
+    st.subheader("📊 Prediction Result")
+    st.metric(label="Predicted Quality", value=f"{prediction}/10")
+except Exception as e:
+    st.error(f"❌ Prediction failed: {str(e)}")
+    st.stop()
 
-# Display prediction
-st.subheader("📊 Prediction Result")
-st.metric(label="Predicted Wine Quality", value=prediction)
-
-# Model evaluation section
-st.subheader("📈 Model Performance Metrics")
+# Visualization section
+st.subheader("📈 Model Performance")
 
 # Confusion Matrix
-st.write("### Confusion Matrix")
-fig_cm, ax_cm = plt.subplots(figsize=(8, 6))
+fig, ax = plt.subplots()
 sns.heatmap(confusion_matrix(y, y_pred), 
-            annot=True, fmt="d", cmap="Blues",
-            xticklabels=np.unique(y), 
-            yticklabels=np.unique(y),
-            ax=ax_cm)
-ax_cm.set_xlabel("Predicted")
-ax_cm.set_ylabel("Actual")
-st.pyplot(fig_cm)
+            annot=True, fmt="d", 
+            cmap="Blues", ax=ax)
+ax.set_title("Confusion Matrix")
+st.pyplot(fig)
 
 # Classification Report
-st.write("### Classification Report")
+st.write("#### Classification Metrics")
 st.code(classification_report(y, y_pred))
 
 # Accuracy
-st.write("### Model Accuracy")
 accuracy = accuracy_score(y, y_pred)
+st.write(f"#### Overall Accuracy: {accuracy:.2%}")
 st.progress(accuracy)
-st.write(f"Accuracy: **{accuracy:.2%}**")
 
-# ROC Curve (if applicable)
-if hasattr(model, "predict_proba") and len(np.unique(y)) > 2:
-    st.write("### ROC Curve")
+# ROC Curve
+if hasattr(model, "predict_proba"):
     fig_roc = plt.figure()
     for i in range(len(np.unique(y))):
-        fpr, tpr, _ = roc_curve((y == i), model.predict_proba(X_scaled)[:, i])
-        plt.plot(fpr, tpr, label=f'Class {i} (AUC = {auc(fpr, tpr):.2f})')
-    plt.plot([0, 1], [0, 1], 'k--')
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
+        y_true = (y == i).astype(int)
+        probas = model.predict_proba(X_scaled)[:, i]
+        fpr, tpr, _ = roc_curve(y_true, probas)
+        roc_auc = auc(fpr, tpr)
+        plt.plot(fpr, tpr, label=f'Class {i} (AUC = {roc_auc:.2f})')
+    plt.plot([0, 1], [0, 1], linestyle='--')
+    plt.title('ROC Curve')
     plt.legend()
     st.pyplot(fig_roc)
-
-# Precision-Recall Curve (if applicable)
-if hasattr(model, "predict_proba"):
-    st.write("### Precision-Recall Curve")
-    fig_pr = plt.figure()
-    for i in range(len(np.unique(y))):
-        precision, recall, _ = precision_recall_curve((y == i), model.predict_proba(X_scaled)[:, i])
-        plt.plot(recall, precision, label=f'Class {i}')
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.legend()
-    st.pyplot(fig_pr)
-
-# Footer
-st.markdown("---")
-st.markdown("Built with ❤️ using Streamlit")
