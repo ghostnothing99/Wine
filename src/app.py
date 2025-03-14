@@ -10,8 +10,8 @@ import seaborn as sns
 # Set the title of the app
 st.title("Wine Quality Prediction App")
 
-model_path = 'models/best_wine_quality_model.joblib'
-scaler_path = 'models/scaler.joblib'
+model_path = 'best_wine_quality_model.joblib'
+scaler_path = 'scaler.joblib'
 
 # Check if model and scaler files exist
 if not os.path.exists(model_path):
@@ -31,7 +31,7 @@ except Exception as e:
     st.error(f"Error loading model or scaler: {e}")
     st.stop()
 
-data_path = 'data/winequality.csv'
+data_path = 'winequality.csv'
 if not os.path.exists(data_path):
     st.error(f"Dataset file not found at: {data_path}. Please ensure the file exists.")
     st.stop()
